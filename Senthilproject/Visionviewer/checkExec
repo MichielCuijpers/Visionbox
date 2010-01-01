@@ -1,0 +1,15 @@
+if test -d /SDCARD
+then
+echo directory already exists
+else
+echo Creating SDCARD directory
+mkdir /SDCARD
+fi
+if test -e /dev/mmcblk0p1
+then
+echo Mounting SD card
+mount /dev/mmcblk0p1 /SDCARD
+else
+echo Storage device not present
+fi
+./VisionViewer
