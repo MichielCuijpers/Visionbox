@@ -19,20 +19,28 @@ using namespace std;
 using namespace cv;
 using namespace mvIMPACT::acquire;
 using namespace mvIMPACT::acquire::GenICam;
+int threshold_value =24;
+int max_value=255;
+Mat frame, frameCopy, img, img2, grayImg, canny_output;
+Mat dst, detected_edges;
+char* window_name = "Threshold";
+char* trackbar_value="value";
+	   Mat src; Mat src_gray;
 
+void Threshold(int, void*);
 int main( int argc, const char** argv )
 {
        	CvCapture* capture = 0;
-      	Mat frame, frameCopy, img, img2, grayImg, canny_output;
-	Mat dst, detected_edges;
 int edgeThresh = 1;
-int lowThreshold=165;
+int lowThreshold=95;//165
 int const max_lowThreshold = 250;
 int ratio = 3;
 int kernel_size = 3;
-	   Mat src; Mat src_gray;
 	   int max_thresh = 255;
 	   RNG rng(12345);
+   img.create(960,1280,CV_8UC4);
+char* source_window = "Contours";
+int requestNr = 0, requestNr2= 0;
 
        cout << "Started - will wait for 1 min" << endl;
 //       sleep(15);
@@ -63,27 +71,30 @@ int kernel_size = 3;
         return 0;
     }
 
-    FunctionInterface fi( pDev );
 
-  
+        FunctionInterface fi( pDev );
+ 
 
 //     img.create((pRequest->imageHeight.read()),(pRequest->imageWidth.read()),CV_8UC4);
 //     img2.create((pRequest2->imageHeight.read()),(pRequest2->imageWidth.read()),CV_8UC1);
-   img.create(960,1280,CV_8UC4);
-  
-int requestNr = 0, requestNr2= 0;
 IOSubSystemBlueFOX ioss (pDev);
 
 DigitalOutput* pOutput = ioss.output (0);
-pOutput->set();
-cout << "values of output   :";
-cout << pOutput->get()<< endl;
-cout << "Input read value  :" << ioss.input(0)->get()<< " :  Value printed" <<endl;
+//cout << "values of output   :";
+//cout << pOutput->get()<< endl;
+//cout << "Input read value  :" << ioss.input(0)->get()<< " :  Value printed" <<endl;
 while (1)
 {
+
+
 	if (ioss.input(0)->get() == 1)
 	{
-	cout << "enterd loop";
+	cout << "Checking the input trigger"<<endl;
+	waitKey(50);
+	if (ioss.input(0)->get() == 1)
+	{
+//	waitKey(100);
+	cout << "entered loop"<<endl ;
 		// send a request to the default request queue of the device and wait for the result.
 		fi.imageRequestSingle();
 		// Start the acquisition manually if this was requested(this is to prepare the driver for data capture and tell the device to start streaming data)
@@ -133,30 +144,32 @@ while (1)
 		memcpy(img.data, (uchar*)pRequest->imageData.read(), (pRequest->imageSize.read()));
 
 
-		fi.imageRequestUnlock(requestNr);
-	char* source_window = "Contours";	
-	namedWindow(source_window, CV_WINDOW_NORMAL);
+	fi.imageRequestUnlock(requestNr);
+	//namedWindow(window_name,CV_WINDOW_NORMAL);
+	namedWindow("Source", CV_WINDOW_NORMAL);
 //	img = imread(argv[1]);
 	dst.create(img.size(), img.type());
 	cvtColor(img, src_gray, CV_BGR2GRAY);
-	blur(src_gray, detected_edges, Size(3, 3));
-
-	/// Canny detector
-	Canny(detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size);
+//	blur(src_gray, detected_edges, Size(3, 3));
+//	createTrackbar(trackbar_value, window_name,&threshold_value, max_value, Threshold);
+//	Threshold(0,0);
+	threshold(src_gray, detected_edges, 24, 255, 0);
+//	erode (detected_edges, detected_edges, Mat(),Point(-1,-1), 1, 1, 1);
+/// Canny detector
+//	Canny(detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size);
 //	Canny(detected_edges, detected_edges, 255, 255*ratio, kernel_size);
-//	namedWindow("Contours", CV_WINDOW_NORMAL);
+	namedWindow("Contours", CV_WINDOW_NORMAL);
 
 	/// Using Canny's output as a mask, we display our result
-	dst = Scalar::all(0);
-	imshow("Contours", img);
-	waitKey(5);
-//	imshow("Contours", detected_edges);
-//	waitKey(0);
+//	dst = Scalar::all(0);
+	imshow("Source", img);
+	waitKey(50);
 
-
-	img.copyTo(dst, detected_edges);
-	dilate(detected_edges, detected_edges, 0);
-	dilate(detected_edges, detected_edges, 1);
+	imshow("Contours", detected_edges);
+	waitKey(50);
+//	img.copyTo(dst, detected_edges);
+//	dilate(detected_edges, detected_edges, 0);
+//	dilate(detected_edges, detected_edges, 1);
 	//imshow(window_name, dst);
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
@@ -165,23 +178,6 @@ while (1)
 
 	/// Draw contours
 	Mat drawing = Mat::zeros(detected_edges.size(), CV_8UC3);
-	for (int i = 0; i< contours.size(); i++)
-	{
-		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-		drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0, Point());
-
-	}
-	cvtColor(drawing, src_gray, CV_BGR2GRAY);
-
-	/// Show in a window
-//	namedWindow("Contours1", CV_WINDOW_AUTOSIZE);
-	threshold(src_gray, detected_edges, 0, 255, 0);
-	dilate(detected_edges, detected_edges, 0);
-	dilate(detected_edges, detected_edges, Mat(), Point(-1, -1), 2, 1, 1);
-//	imshow("Contours", detected_edges);
-//	waitKey(0);
-	/// Find contours
-	findContours(detected_edges, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	int count = 0;
 	for (int i = 0; i < contours.size(); i++)
@@ -189,7 +185,7 @@ while (1)
 		double area = contourArea(contours[i]);
 		Rect rect = boundingRect(contours[i]);
 	//	cout << "Area  :" << area << endl;
-		if (area <= 400 && area >= 75 )
+		if (area <= 1000 && area >= 20 )
 		{
 
 			Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
@@ -203,8 +199,32 @@ while (1)
 //	imshow("Contours", drawing);
 //	waitKey(0);
 	cout << "No of particles  : "  <<count<<endl;
-	while (ioss.input(0)->get() == 1)
+	if (count >= 5)
 	{
+	cout << "Passed" <<endl;
+	pOutput->reset();
+	}
+	else
+	{
+	cout << "Failed" <<endl;
+	pOutput->set();
+//	namedWindow("Contours", CV_WINDOW_NORMAL);
+
+//	imshow("Contours", img);
+//	waitKey(0);
+
+//	threshold(src_gray, detected_edges, 20, 255, 0);
+//	erode (detected_edges, detected_edges, Mat(),Point(-1,-1), 1, 1, 1);
+
+//	imshow("Contours", detected_edges);
+//	waitKey(0);
+
+	}
+	if (ioss.input(0)->get() == 1)
+	{
+	cout <<"inside loop"<<endl;
+	}
+
 	}
 
 	}
@@ -213,4 +233,9 @@ while (1)
     cin.get();
     return 0;
 
+}
+void Threshold(int, void*)
+{
+	threshold(src_gray, detected_edges, threshold_value, 255, 0);
+	imshow(window_name,detected_edges);
 }

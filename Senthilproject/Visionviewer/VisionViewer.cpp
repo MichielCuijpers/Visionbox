@@ -217,7 +217,8 @@ int main(int argc, const char** argv)
 	}
 
 	FunctionInterface fi(pDev);
-	img.create(1944, 2592, CV_8UC4);
+//	img.create(1944, 2592, CV_8UC4);
+	img.create(960, 1280, CV_8UC4);
 
 	int requestNr = 0;
 

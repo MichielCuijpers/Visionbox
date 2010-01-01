@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Autologin Autostart
+Exec=/home/linaro/.Startup
+Type=Application
+Terminal=false
