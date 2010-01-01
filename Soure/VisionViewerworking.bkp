@@ -1,0 +1,515 @@
+#include </opt/mvIMPACT_acquire/common/minmax.h>
+#include <mvIMPACT_CPP/mvIMPACT_acquire_GenICam.h>
+
+using namespace mvIMPACT::acquire::GenICam;
+
+
+#include "opencv2/objdetect/objdetect.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include <fstream>
+#include <cctype>
+#include <iostream>
+#include <iterator>
+#include <stdio.h>
+#include <string>
+#include <stdint.h>
+#include <unistd.h>
+#include </opt/mvIMPACT_acquire/apps/Common/exampleHelper.h>
+#include </opt/mvIMPACT_acquire/mvIMPACT_CPP/mvIMPACT_acquire.h>
+
+/* For UART */
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <errno.h>
+#include <time.h>
+#include <sys/ioctl.h>
+
+using namespace std;
+using namespace cv;
+using namespace mvIMPACT::acquire;
+
+#define TRUE 1
+#define FALSE -1
+/// Function headers
+void adpThreshold( int, void* );
+
+const char* trackbar_value = "Value";
+int Tvalue =0;
+int speed_arr[] = { B115200, B38400, B19200, B9600, B4800, B2400, B1200, B300,
+B38400, B19200, B9600, B4800, B2400, B1200, B300, };
+
+int name_arr[] = { 115200, 38400, 19200, 9600, 4800, 2400, 1200, 300,
+38400, 19200, 9600, 4800, 2400, 1200, 300, };
+
+
+
+// For thred inspection
+
+
+Mat src; Mat src_gray;
+int thresh = 62;
+int max_thresh = 255;
+RNG rng(12345);
+
+/// Function header
+void thresh_callback(int, void*);
+Mat CV_EXPORTS FillHoles(Mat _src);
+///////////////////////////
+typedef uint8_t BYTE;
+typedef uint16_t WORD;
+typedef uint32_t DWORD;
+typedef int32_t LONG;
+typedef bool BOOLEAN;
+
+#   ifdef __GNUC__
+#       define BMP_ATTR_PACK __attribute__((packed)) __attribute__ ((aligned (2)))
+#   else
+#       define BMP_ATTR_PACK
+#   endif // #ifdef __GNUC__
+
+typedef struct tagRGBQUAD
+{
+    BYTE    rgbBlue;
+    BYTE    rgbGreen;
+    BYTE    rgbRed;
+    BYTE    rgbReserved;
+} BMP_ATTR_PACK RGBQUAD;
+
+typedef struct tagBITMAPINFOHEADER
+{
+    DWORD  biSize;
+    LONG   biWidth;
+    LONG   biHeight;
+    WORD   biPlanes;
+    WORD   biBitCount;
+    DWORD  biCompression;
+    DWORD  biSizeImage;
+    LONG   biXPelsPerMeter;
+    LONG   biYPelsPerMeter;
+    DWORD  biClrUsed;
+    DWORD  biClrImportant;
+} BMP_ATTR_PACK BITMAPINFOHEADER, *PBITMAPINFOHEADER;
+
+typedef struct tagBITMAPFILEHEADER
+{
+    WORD    bfType;
+    DWORD   bfSize;
+    WORD    bfReserved1;
+    WORD    bfReserved2;
+    DWORD   bfOffBits;
+} BMP_ATTR_PACK BITMAPFILEHEADER, *PBITMAPFILEHEADER;
+
+//-----------------------------------------------------------------------------
+int SaveBMP( const string& filename, const char* pdata, int XSize, int YSize, int pitch, int bitsPerPixel )
+//------------------------------------------------------------------------------
+{
+    static const WORD PALETTE_ENTRIES = 256;
+
+    if( pdata )
+    {
+        FILE* pFile = fopen( filename.c_str(), "wb" );
+        if( pFile )
+        {
+            BITMAPINFOHEADER    bih;
+            BITMAPFILEHEADER    bfh;
+            WORD                linelen = static_cast<WORD>( ( XSize * bitsPerPixel + 31 ) / 32 * 4 );  // DWORD aligned
+            int                 YPos;
+            int                 YStart = 0;
+
+            memset( &bfh, 0, sizeof( BITMAPFILEHEADER ) );
+            memset( &bih, 0, sizeof( BITMAPINFOHEADER ) );
+            bfh.bfType          = 0x4d42;
+            bfh.bfSize          = sizeof( bih ) + sizeof( bfh ) + sizeof( RGBQUAD ) * PALETTE_ENTRIES + static_cast<LONG>( linelen ) * static_cast<LONG>( YSize );
+            bfh.bfOffBits       = sizeof( bih ) + sizeof( bfh ) + sizeof( RGBQUAD ) * PALETTE_ENTRIES;
+            bih.biSize          = sizeof( bih );
+            bih.biWidth         = XSize;
+            bih.biHeight        = YSize;
+            bih.biPlanes        = 1;
+            bih.biBitCount      = static_cast<WORD>( bitsPerPixel );
+            bih.biSizeImage     = static_cast<DWORD>( linelen ) * static_cast<DWORD>( YSize );
+
+            if( ( fwrite( &bfh, sizeof( bfh ), 1, pFile ) == 1 ) && ( fwrite( &bih, sizeof( bih ), 1, pFile ) == 1 ) )
+            {
+                RGBQUAD rgbQ;
+                for( int i = 0; i < PALETTE_ENTRIES; i++ )
+                {
+                    rgbQ.rgbRed      = static_cast<BYTE>( i );
+                    rgbQ.rgbGreen    = static_cast<BYTE>( i );
+                    rgbQ.rgbBlue     = static_cast<BYTE>( i );
+                    rgbQ.rgbReserved = static_cast<BYTE>( 0 );
+                    fwrite( &rgbQ, sizeof( rgbQ ), 1, pFile );
+                }
+
+                for( YPos = YStart + YSize - 1; YPos >= YStart; YPos-- )
+                {
+                    if( fwrite( &pdata[YPos * pitch], linelen, 1, pFile ) != 1 )
+                    {
+                        cout << "SaveBmp: ERR_WRITE_FILE: " << filename << endl;
+                    }
+                }
+            }
+            else
+            {
+                cout << "SaveBmp: ERR_WRITE_FILE: " << filename << endl;
+            }
+            fclose( pFile );
+        }
+        else
+        {
+            cout << "SaveBmp: ERR_CREATE_FILE: " << filename << endl;
+        }
+    }
+    else
+    {
+        cout << "SaveBmp: ERR_DATA_INVALID:" << filename << endl;
+    }
+    return 0;
+}
+
+
+
+void set_speed(int fd, int speed)
+{
+	int i;
+	int status;
+	struct termios Opt;
+	tcgetattr(fd, &Opt);
+	for (i = 0; i < sizeof(speed_arr) / sizeof(int); i++)
+	{
+		if (speed == name_arr[i])
+		{
+			tcflush(fd, TCIOFLUSH);
+			cfsetispeed(&Opt, speed_arr[i]);
+			cfsetospeed(&Opt, speed_arr[i]);
+			status = tcsetattr(fd, TCSANOW, &Opt);
+			if (status != 0)
+				perror("tcsetattr fd1");
+			return;
+		}
+		tcflush(fd, TCIOFLUSH);
+	}
+}
+
+int set_Parity(int fd, int databits, int stopbits, int parity)
+{
+	struct termios options;
+	if (tcgetattr(fd, &options) != 0)
+	{
+		perror("SetupSerial 1");
+		return(FALSE);
+	}
+
+	options.c_cflag &= ~CSIZE;
+	switch (databits)
+	{
+	case 7:
+		options.c_cflag |= CS7;
+		break;
+	case 8:
+		options.c_cflag |= CS8;
+		break;
+	default:
+		fprintf(stderr, "Unsupported data size\n");
+		return (FALSE);
+	}
+
+	switch (parity)
+	{
+	case 'n':
+	case 'N':
+		options.c_cflag &= ~PARENB;    /* Clear parity enable */
+		options.c_iflag &= ~INPCK;    /* Enable parity checking */
+		options.c_iflag &= ~(ICRNL | IGNCR);
+		options.c_lflag &= ~(ICANON);
+		break;
+	case 'o':
+	case 'O':
+		options.c_cflag |= (PARODD | PARENB);
+		options.c_iflag |= INPCK;    /* Disnable parity checking */
+		break;
+	case 'e':
+	case 'E':
+		options.c_cflag |= PARENB;    /* Enable parity */
+		options.c_cflag &= ~PARODD;
+		options.c_iflag |= INPCK;    /* Disnable parity checking */
+		break;
+	case 'S':
+	case 's':  /*as no parity*/
+		options.c_cflag &= ~PARENB;
+		options.c_cflag &= ~CSTOPB;
+		break;
+	default:
+		fprintf(stderr, "Unsupported parity\n");
+		return (FALSE);
+	}
+
+	switch (stopbits)
+	{
+	case 1:
+		options.c_cflag &= ~CSTOPB;
+		break;
+
+	case 2:
+		options.c_cflag |= CSTOPB;
+		break;
+
+	default:
+		fprintf(stderr, "Unsupported stop bits\n");
+		return (FALSE);
+	}
+
+	/* Set input parity option */
+
+	if (parity != 'n')
+		options.c_iflag |= INPCK;
+	options.c_cc[VTIME] = 5; // 0.5 seconds
+	options.c_cc[VMIN] = 0;
+
+	tcflush(fd, TCIFLUSH); /* Update the options and do it NOW */
+
+	if (tcsetattr(fd, TCSANOW, &options) != 0)
+	{
+		perror("SetupSerial 3");
+		return (FALSE);
+	}
+	return (TRUE);
+}
+
+
+int main(int argc, const char** argv)
+{
+	char s[33];
+	int fp;
+	size_t itime;
+	struct tm tim;
+	time_t now;
+
+	int fd;
+	int nread;
+	int nwrite;
+	int n = 0;
+	int i = 0;
+	char buffer[20];
+	char test;
+	int k;
+	k=1;
+	string filename;
+	ifstream gpioread;
+	char value;
+	char oldValue;
+	oldValue ='0';
+	const char valueset = '1';
+	const char valuereset = '0';
+	CvCapture* capture = 0;
+	Mat frame, frameCopy, img, img2, grayImg;
+	cvNamedWindow("result", CV_WINDOW_NORMAL);
+//        cvSetWindowProperty("result", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+
+	cout << "Started - will wait for 1 min" << endl;
+	cout << "Getting in...";
+	cout << k <<endl;
+DeviceManager devMgr;
+
+	Device* pDev = devMgr[0]; //getDeviceFromUserInput( devMgr );
+	struct stat st;
+
+	if (!pDev)
+	{
+		cout << "Unable to continue!";
+		cout << "Press [ENTER] to end the application" << endl;
+		cin.get();
+		return 0;
+	}
+
+	try
+	{
+		pDev->open();
+	}
+	catch (const ImpactAcquireException& e)
+	{
+		// this e.g. might happen if the same device is already opened in another process...
+		cout << "An error occurred while opening the device(error code: " << e.getErrorCode() << "). Press [ENTER] to end the application..." << endl;
+		cout << "Press [ENTER] to end the application" << endl;
+		cin.get();
+		return 0;
+	}
+
+	FunctionInterface fi(pDev);
+
+
+	img.create(960, 1280, CV_8UC4);
+
+	int requestNr = 0;
+
+	/*
+	if (argc < 2)
+	{
+	printf("Please input './test_uart ttySx'\n");
+	exit(1);
+	}
+	else
+	{
+	*/
+//	strcpy(dev_name, devname_head);
+//	strcat(dev_name, "ttyS2");
+	//}
+
+int bytes = 0;
+struct timespec tstart = {0,0}, tend = {0,0};
+
+double dblTimeDiff;
+
+	while (1)
+	{
+/*		clock_gettime(CLOCK_MONOTONIC, &tstart);
+		ioctl(fd, FIONREAD, &bytes);
+		if(bytes > 0)
+		{
+			nread = read(fd, buffer, bytes);
+			cout << "Serial string: " << buffer << endl;
+			cout << "Bytes: " << bytes << endl;
+		}
+
+		gpioread.open("/sys/class/gpio/gpio3_pg4/value");
+		if (gpioread.is_open())
+		{
+			while (!gpioread.eof())
+			{
+				gpioread >> value;
+				cout << "Read value is \n";
+				cout << value << endl;
+			}
+		}
+		else
+		cout << "Unable to read" << endl;
+		gpioread.close();*/
+
+//		IOSubSystemBlueFOX ioss( pDev );
+//		cout << "   [" << 0 << "]: " << ioss.input( 0 )->getDescription() << "(current state: " << ioss.input( 0 )->get() << ")" << endl;
+//		if (value == valueset && oldValue == valuereset)
+		int loop =1;
+		if (loop)
+		{
+			oldValue='1';
+			// send a request to the default request queue of the device and wait for the result.
+			fi.imageRequestSingle();
+			// Start the acquisition manually if this was requested(this is to prepare the driver for data capture and tell the device to start streaming data)
+			if (pDev->acquisitionStartStopBehaviour.read() == assbUser)
+			{
+				TDMR_ERROR result = DMR_NO_ERROR;
+				if ((result = static_cast<TDMR_ERROR>(fi.acquisitionStart())) != DMR_NO_ERROR)
+				{
+					cout << "'FunctionInterface.acquisitionStart' returned with an unexpected result: " << result
+						<< "(" << ImpactAcquireException::getErrorCodeAsString(result) << ")" << endl;
+				}
+			}
+			// Define the Image Result Timeout (The maximum time allowed for the Application
+			// to wait for a Result). Infinity value:-1
+			const int iMaxWaitTime_ms = -1;   // USB 1.1 on an embedded system needs a large timeout for the first image.
+			// wait for results from the default capture queue.
+			int requestNr = fi.imageRequestWaitFor(iMaxWaitTime_ms);
+
+			// check if the image has been captured without any problems.
+			if (!fi.isRequestNrValid(requestNr))
+			{
+				// If the error code is -2119(DEV_WAIT_FOR_REQUEST_FAILED), the documentation will provide
+				// additional information under TDMR_ERROR in the interface reference
+				cout << "imageRequestWaitFor failed (" << requestNr << ", " << ImpactAcquireException::getErrorCodeAsString(requestNr) << ")"
+					<< ", timeout value too small?" << endl;
+				return 0;
+			}
+
+			const Request* pRequest = fi.getRequest(requestNr);
+			if (!pRequest->isOK())
+			{
+				cout << "Error: " << pRequest->requestResult.readS() << endl;
+				return 0;
+			}
+
+			//  cout << "Image captured( " << pRequest->imagePixelFormat.readS() << " " << pRequest->imageWidth.read() << "x" << pRequest->imageHeight.read() << " )" << endl;
+			//cout << pRequest->imageSize.read()<<endl;
+			memcpy(img.data, (uchar*)pRequest->imageData.read(), (pRequest->imageSize.read()));
+
+			//  cv::imshow( "result", img );
+			//   waitKey(1000);
+
+
+//			if(bytes != 0)
+//			{
+//			cv::putText(img,
+//			cv::putText(img,buffer, Point(30, 600), FONT_HERSHEY_SIMPLEX, 4, Scalar(200, 200, 250), 10);
+//			}
+			IOSubSystemBlueFOX ioss( pDev );
+			cout << "   [" << 0 << "]: " << ioss.input( 0 )->getDescription() << "(current state: " << ioss.input( 0 )->get() << ")" << endl;
+			if ( ioss.input ( 0 )->get() == 1 && k == 1 )
+			{
+			k=2;
+			}
+			if ( ioss.input ( 0 )->get() ==  0)
+			{
+			k=1;
+			}
+
+	 		if(stat("/SDCARD/IMAGES/",&st) == 0)
+		        {
+			if (k == 2)
+			{
+
+
+			time_t now;
+			s[0] = '\0';
+			now = time(NULL);
+			strftime(s,33,"/home/linaro/%Y%m%d%H%M%S.bmp",gmtime(&now));
+			string filename(s);
+			cout<<"LOCAL time "<<&now<<endl;
+			cout<< "Saving to the file "<<endl;
+			cout << filename<<endl;
+			SaveBMP( filename, reinterpret_cast<char*>( pRequest->imageData.read() ), pRequest->imageWidth.read(), pRequest->imageHeight.read(), pRequest->imageLinePitch.read(), pRequest->imagePixelPitch.read() * 8 );
+			k=0;
+			}
+			}
+	//		else
+	//		{
+			cv::imshow("result", img);
+			waitKey(10);
+	//		}
+			fi.imageRequestUnlock(requestNr);
+
+
+		}
+
+	else if (value == valuereset)
+ 	{
+	oldValue='0';
+	cout <<"Readvalue zero"<<endl;
+	}
+
+}
+
+
+	cout << "Press [ENTER] to end the application" << endl;
+	cin.get();
+	return 0;
+
+}
+
+/**
+ * @function Threshold_Demo
+ */
+void adpThreshold( int, void* )
+{
+  /* 0: Binary
+     1: Binary Inverted
+     2: Threshold Truncated
+     3: Threshold to Zero
+     4: Threshold to Zero Inverted
+   */
+
+	//threshold( src_gray, dst, threshold_value, max_BINARY_value,threshold_type );
+
+//  imshow( window_name, dst );
+}
