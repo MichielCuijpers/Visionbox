@@ -38,7 +38,6 @@ int main(int argc, const char** argv)
 
 
 	int max_thresh = 255;
-	RNG rng(12345);
 
 	cout << "Started - will wait for 1 min" << endl;
 	//       sleep(15);
@@ -73,7 +72,6 @@ int main(int argc, const char** argv)
 
 
 
-	    img.create((pRequest->imageHeight.read()),(pRequest->imageWidth.read()),CV_8UC4);
 	//     img2.create((pRequest2->imageHeight.read()),(pRequest2->imageWidth.read()),CV_8UC1);
 	//img.create(960, 1280, CV_8UC4);
 
@@ -136,6 +134,8 @@ int main(int argc, const char** argv)
 #endif // NO_DISPLAY
 			//  cout << "Image captured( " << pRequest->imagePixelFormat.readS() << " " << pRequest->imageWidth.read() << "x" << pRequest->imageHeight.read() << " )" << endl;
 			//cout << pRequest->imageSize.read()<<endl;
+		        img.create((pRequest->imageHeight.read()),(pRequest->imageWidth.read()),CV_8UC4);
+
 			memcpy(img.data, (uchar*)pRequest->imageData.read(), (pRequest->imageSize.read()));
 
 

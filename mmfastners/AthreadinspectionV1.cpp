@@ -38,7 +38,6 @@ int main(int argc, const char** argv)
 
 
 	int max_thresh = 255;
-	RNG rng(12345);
 
 	cout << "Started - will wait for 1 min" << endl;
 	//       sleep(15);
