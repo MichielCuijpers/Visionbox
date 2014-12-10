@@ -22,14 +22,8 @@ using namespace mvIMPACT::acquire::GenICam;
 
 int main( int argc, const char** argv )
 {
-       	CvCapture* capture = 0;
-      	Mat frame, frameCopy, img, img2, grayImg, canny_output;
-	Mat dst, detected_edges;
-int edgeThresh = 1;
-int lowThreshold=165;
-int const max_lowThreshold = 250;
-int ratio = 3;
-int kernel_size = 3;
+       CvCapture* capture = 0;
+      Mat frame, frameCopy, img, img2, grayImg, canny_output;
 	   Mat src; Mat src_gray;
 	   int max_thresh = 255;
 	   RNG rng(12345);
@@ -134,76 +128,79 @@ while (1)
 
 
 		fi.imageRequestUnlock(requestNr);
-//	char* source_window = "source";	
-//	namedWindow(source_window, CV_WINDOW_NORMAL);
-//	img = imread(argv[1]);
-	dst.create(img.size(), img.type());
-	cvtColor(img, src_gray, CV_BGR2GRAY);
-	blur(src_gray, detected_edges, Size(3, 3));
+	char* source_window = "source";	
+	namedWindow(source_window, CV_WINDOW_NORMAL);
+		int thresh = 50;
+		/// Load source image and convert it to gray
+		/// Convert image to gray and blur it
+		cvtColor(img, src_gray, CV_BGR2GRAY);
+		//  blur( src_gray, src_gray, Size(3,3) );
 
-	/// Canny detector
-	Canny(detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size);
-//	Canny(detected_edges, detected_edges, 255, 255*ratio, kernel_size);
-	namedWindow("Contours", CV_WINDOW_AUTOSIZE);
-
-	/// Using Canny's output as a mask, we display our result
-	dst = Scalar::all(0);
-	imshow("Contours", img);
-	waitKey(0);
-	imshow("Contours", detected_edges);
-	waitKey(0);
-
-
-	img.copyTo(dst, detected_edges);
-	dilate(detected_edges, detected_edges, 0);
-	dilate(detected_edges, detected_edges, 1);
-	//imshow(window_name, dst);
-	vector<vector<Point> > contours;
+		vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
+	blur(src_gray, src_gray, Size(3, 3));
+	/// Detect edges using canny
+	//Canny(src_gray, canny_output, thresh, 255, 3);
+	threshold(src_gray, canny_output, 38, 255, 0);
+	imshow(source_window, img);
+	waitKey(0);
+	dilate(canny_output, canny_output, 1);
 	/// Find contours
-	findContours(detected_edges, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	findContours(canny_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
 	/// Draw contours
-	Mat drawing = Mat::zeros(detected_edges.size(), CV_8UC3);
-	for (int i = 0; i< contours.size(); i++)
+	Mat drawing = Mat::zeros(canny_output.size(), CV_8UC3);
+	for (int i = 0; i < contours.size(); i++)
 	{
-		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-		drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0, Point());
+		double area = contourArea(contours[i]);
+		Rect rect = boundingRect(contours[i]);
+		if (area <= 6000 && area >= 100)
+		{
 
+			Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+			drawContours(drawing, contours, i, Scalar(255, 255, 255), -1, 8, hierarchy, 0, Point());
+		}
 	}
-	cvtColor(drawing, src_gray, CV_BGR2GRAY);
+	//dilate(drawing, drawing, 1);
 
 	/// Show in a window
-//	namedWindow("Contours1", CV_WINDOW_AUTOSIZE);
-	threshold(src_gray, detected_edges, 0, 255, 0);
-	dilate(detected_edges, detected_edges, 0);
-	dilate(detected_edges, detected_edges, Mat(), Point(-1, -1), 2, 1, 1);
-	imshow("Contours", detected_edges);
-	waitKey(0);
-	/// Find contours
-	findContours(detected_edges, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	namedWindow("Contours", CV_WINDOW_NORMAL);
 
+	int erosion_type = 1;
+	int erosion_size = 2;
+	Mat element = getStructuringElement(erosion_type,
+		Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+		Point(erosion_size, erosion_size));
+
+	//Apply morphological opening operation to eliminate unwanted region.
+	Size kernalSize(5, 4); //kernal size may change for differnt image
+	Mat element1 = getStructuringElement(MORPH_RECT, kernalSize, Point(1, 1));
+	morphologyEx(drawing, drawing, MORPH_CLOSE, element1);
+	cvtColor(drawing, drawing, CV_BGR2GRAY);
+	threshold(drawing, drawing, 0, 255, 0);
+	imshow("Contours", drawing);
+	waitKey(0);
+	findContours(drawing, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
+	/// Draw contours
+	Mat drawing1 = Mat::zeros(drawing.size(), CV_8UC3);
 	int count = 0;
 	for (int i = 0; i < contours.size(); i++)
 	{
 		double area = contourArea(contours[i]);
 		Rect rect = boundingRect(contours[i]);
-	//	cout << "Area  :" << area << endl;
-		if (area <= 400 && area >= 75 )
+		if (area >= 100 && area <= 8000 && rect.width <= 600 && rect.height <= 600)
 		{
 
 			Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
-			drawContours(drawing, contours, i, Scalar(255, 255, 255), 1, 8, hierarchy, 0, Point());
-			count = count + 1;
-		//	cout << "Rect" << i << "  :" << rect << endl;
-
+			drawContours(drawing1, contours, i, Scalar(255, 255, 255), 2, 8, hierarchy, 0, Point());
+			count++;
 		}
 	}
-
-	imshow("Contours", drawing);
+	cout << "Total count is " << count << endl;
+	if ( count >= 3 )
+	cout << "Object Present"<<endl;
+	imshow("Contours", drawing1);
 	waitKey(0);
-	cout << "No of particles  : "  <<count<<endl;
-
 
 
 	}
