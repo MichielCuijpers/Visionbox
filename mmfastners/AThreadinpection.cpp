@@ -81,7 +81,7 @@ cout << pOutput->get()<< endl;
 cout << "Input read value  :" << ioss.input(0)->get()<< " :  Value printed" <<endl;
 while (1)
 {
-	if (ioss.input(0)->get() == 0)
+	if (ioss.input(0)->get() == 1)
 	{
 	cout << "enterd loop";
 		// send a request to the default request queue of the device and wait for the result.
@@ -134,8 +134,8 @@ while (1)
 
 
 		fi.imageRequestUnlock(requestNr);
-//	char* source_window = "source";	
-//	namedWindow(source_window, CV_WINDOW_NORMAL);
+	char* source_window = "Contours";	
+	namedWindow(source_window, CV_WINDOW_NORMAL);
 //	img = imread(argv[1]);
 	dst.create(img.size(), img.type());
 	cvtColor(img, src_gray, CV_BGR2GRAY);
@@ -144,14 +144,14 @@ while (1)
 	/// Canny detector
 	Canny(detected_edges, detected_edges, lowThreshold, lowThreshold*ratio, kernel_size);
 //	Canny(detected_edges, detected_edges, 255, 255*ratio, kernel_size);
-	namedWindow("Contours", CV_WINDOW_AUTOSIZE);
+//	namedWindow("Contours", CV_WINDOW_NORMAL);
 
 	/// Using Canny's output as a mask, we display our result
 	dst = Scalar::all(0);
 	imshow("Contours", img);
-	waitKey(0);
-	imshow("Contours", detected_edges);
-	waitKey(0);
+	waitKey(5);
+//	imshow("Contours", detected_edges);
+//	waitKey(0);
 
 
 	img.copyTo(dst, detected_edges);
@@ -178,8 +178,8 @@ while (1)
 	threshold(src_gray, detected_edges, 0, 255, 0);
 	dilate(detected_edges, detected_edges, 0);
 	dilate(detected_edges, detected_edges, Mat(), Point(-1, -1), 2, 1, 1);
-	imshow("Contours", detected_edges);
-	waitKey(0);
+//	imshow("Contours", detected_edges);
+//	waitKey(0);
 	/// Find contours
 	findContours(detected_edges, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 
@@ -200,15 +200,14 @@ while (1)
 		}
 	}
 
-	imshow("Contours", drawing);
-	waitKey(0);
+//	imshow("Contours", drawing);
+//	waitKey(0);
 	cout << "No of particles  : "  <<count<<endl;
-
-
+	while (ioss.input(0)->get() == 1)
+	{
+	}
 
 	}
-	else
-	cout << "Read Value is 0" << endl;
 }
     cout << "Press [ENTER] to end the application" << endl;
     cin.get();
