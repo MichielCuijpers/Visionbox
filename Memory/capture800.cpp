@@ -59,9 +59,9 @@ int main( int argc, const char** argv )
 
 //     img.create((pRequest->imageHeight.read()),(pRequest->imageWidth.read()),CV_8UC4);
 //     img2.create((pRequest2->imageHeight.read()),(pRequest2->imageWidth.read()),CV_8UC1);
-   img.create(960,1280,CV_8UC4);
+   img.create(800,800,CV_8UC4);
    // img.create(960,1280,CV_8UC1);
-   img2.create(960,1280,CV_8UC4);
+   img2.create(800,800,CV_8UC4);
 int requestNr = 0, requestNr2= 0;
 
 //Point img2_Start_x = Point(0, 480);
@@ -182,22 +182,22 @@ while (1)
 	memcpy(img2.data,(uchar*)pRequest2->imageData.read(), (pRequest2->imageSize.read()));
 	// cvtColor(img2, grayImg, CV_RGB2GRAY);
 	//Mat trial(Size(732,732),CV_8UC4);
-	Mat roi1(img, Rect(0,0,800,800));
-	Mat roi2(img2, Rect(0,0,800,800));
+//	Mat roi1(img, Rect(0,0,800,800));
+//	Mat roi2(img2, Rect(0,0,800,800));
 //	cv::imshow( "result", roi );
 //	waitKey(0);
 
 //	Size sz1 =img.size();
-	Size sz1 =roi1.size();
+	Size sz1 =img.size();
 //	Size sz2 =img2.size();
-	Size sz2 =roi2.size();
+	Size sz2 =img2.size();
 
 	Mat merge(sz1.height, sz1.width+sz2.width, CV_8UC4);
 	Mat left(merge, Rect(0, 0,sz1.width, sz1.height));
-	roi1.copyTo(left);
+	img.copyTo(left);
 
 	Mat right(merge, Rect(sz1.width, 0, sz2.width, sz2.height));
-	roi2.copyTo(right);
+	img2.copyTo(right);
 //        cvtColor(img,cimg,CV_RGB2GRAY);
 //	img.cols=640;//(pRequest->imageWidth);
 //	img.rows=480;//(pRequest->imageHeight);
@@ -216,7 +216,7 @@ while (1)
 	line(merge, img2_Start_y2, img2_End_y2, Scalar(172,252,11), 4, 8);
 
 	cv::imshow( "result", merge );
-	waitKey(1);
+	waitKey(5);
 
 //	cvtColor(img,cimg,CV_GRAY2RGB);
 //       cv::imshow("result", cimg);
