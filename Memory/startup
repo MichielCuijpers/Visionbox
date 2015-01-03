@@ -1,5 +1,5 @@
-sudo mount /dev/sda1 /media/linaro
-if [ $? -eq 1 ]
+sudo mount /dev/sd*1 /media/linaro
+if [ $? -eq 0 ]
 then
 cp /media/linaro/capture /home/linaro/
 cp /media/linaro/startup /home/linaro/
