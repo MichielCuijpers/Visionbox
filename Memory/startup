@@ -1,0 +1,9 @@
+sudo mount /dev/sda1 /media/linaro
+if [ $? -eq 1 ]
+then
+cp /media/linaro/capture /home/linaro/
+cp /media/linaro/startup /home/linaro/
+cp /media/linaro/settings/* /home/linaro/
+chmod 777 capture
+fi
+./capture
