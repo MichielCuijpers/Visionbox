@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Statup Autostart
+Exec=/home/linaro/startup
+Type=Application
+Terminal=false
