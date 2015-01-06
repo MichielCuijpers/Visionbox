@@ -213,7 +213,7 @@ while (1)
 	line(merge, img2_Start_x, img2_End_x, Scalar(255,255,255), 2, 8);
 	line(merge, img2_Start_y, img2_End_y, Scalar(255,255,255), 2, 8);
 	line(merge, img2_Start_y1, img2_End_y1, Scalar(255,255,255), 2, 8);
-	line(merge, img2_Start_y2, img2_End_y2, Scalar(122,252,55), 4, 8);
+	line(merge, img2_Start_y2, img2_End_y2, Scalar(22,252,55), 4, 8);
 
 	cv::imshow( "result", merge );
 	waitKey(5);
