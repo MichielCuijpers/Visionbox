@@ -80,6 +80,11 @@ Point img2_End_y1 = Point(800+400,800);
 Point img2_Start_y2 = Point(800,0);
 Point img2_End_y2 = Point(800,800);
 
+Point x1y1 = Point(4,4);
+Point x1y2 = Point(4,796);
+Point x2y1 = Point(1592,4);
+Point x2y2 = Point(1592,796);
+
 while (1)
 {
     // send a request to the default request queue of the device and wait for the result.
@@ -210,10 +215,15 @@ while (1)
 //	cv::imshow( "result", img );
 //	waitKey(1000);
 
-	line(merge, img2_Start_x, img2_End_x, Scalar(255,255,255), 2, 8);
-	line(merge, img2_Start_y, img2_End_y, Scalar(255,255,255), 2, 8);
-	line(merge, img2_Start_y1, img2_End_y1, Scalar(255,255,255), 2, 8);
+	line(merge, img2_Start_x, img2_End_x, Scalar(255,255,255), 1, 8);
+	line(merge, img2_Start_y, img2_End_y, Scalar(255,255,255), 1, 8);
+	line(merge, img2_Start_y1, img2_End_y1, Scalar(255,255,255), 1, 8);
 	line(merge, img2_Start_y2, img2_End_y2, Scalar(22,252,55), 4, 8);
+
+	line(merge, x1y1, x1y2, Scalar(22,252,55), 4, 8);
+	line(merge, x1y2, x2y2, Scalar(22,252,55), 4, 8);
+	line(merge, x2y2, x2y1, Scalar(22,252,55), 4, 8);
+	line(merge, x2y1, x1y1, Scalar(22,252,55), 4, 8);
 
 	cv::imshow( "result", merge );
 	waitKey(5);
